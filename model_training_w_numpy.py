@@ -3,7 +3,7 @@ from stochnet.classes.NeuralNetworks import StochNeuralNetwork
 from stochnet.classes.TopLayers import MixtureOutputLayer, MultivariateNormalDiagOutputLayer
 from stochnet.utils.file_organization import ProjectFileExplorer
 from stochnet.utils.utils import get_train_and_validation_generator_w_scaler
-from keras.layers import Input, Dense, Reshape
+from keras.layers import Input, Dense, Reshape, Add
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.constraints import maxnorm
 from keras import backend as K
@@ -11,11 +11,16 @@ from time import time
 
 
 def get_NN(nb_past_timesteps, nb_features):
+    n_hidden = 10
     input_tensor = Input(shape=(nb_past_timesteps, nb_features))
     flatten1 = Reshape((nb_features,))(input_tensor)
-    NN_body = Dense(250, kernel_constraint=maxnorm(3), activation='relu')(flatten1)
-
-    number_of_components = 3
+    NN_body = Dense(n_hidden, activation='relu')(flatten1)
+    tmp = Dense(n_hidden, activation='relu')(NN_body)
+    tmp_2 = Add()([tmp, NN_body])
+    tmp_2 = Dense(n_hidden, activation='relu')(tmp_2)
+    NN_body = Add()([tmp_2, NN_body])
+# , kernel_constraint=maxnorm(2)
+    number_of_components = 7
     components = []
     for j in range(number_of_components):
         components.append(MultivariateNormalDiagOutputLayer(nb_features))
@@ -60,7 +65,7 @@ if __name__ == '__main__':
                                      verbose=1, save_best_only=True,
                                      save_weights_only=True, mode='min'))
     result = NN.fit_generator(training_generator=train_gen,
-                              samples_per_epoch=3 * 10**4, epochs=5, verbose=1,
+                              samples_per_epoch=3 * 10**4, epochs=20, verbose=1,
                               callbacks=callbacks,
                               validation_generator=val_gen,
                               nb_val_samples=10**3)
